@@ -11,3 +11,4 @@
 .project-field textarea::-webkit-scrollbar{width:10px}.project-field textarea::-webkit-scrollbar-thumb{background:#aeb9cc;border-radius:8px}.project-field textarea::-webkit-scrollbar-track{background:#f1f4f8;border-radius:8px}
 .resume-source textarea{height:180px;background:#f7f9fd;color:#53627a}
 .project-picker select{height:40px;border:1px solid var(--line);border-radius:9px;padding:0 11px;color:var(--ink);background:#fbfcff}
+.direction-layout{grid-template-columns:minmax(0,1fr) minmax(360px,1fr);max-width:none}.selected-project{min-width:0}.selected-project h2{overflow-wrap:anywhere;word-break:normal;line-height:1.35}.selected-project p{overflow-wrap:anywhere}

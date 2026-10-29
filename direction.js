@@ -26,14 +26,14 @@ function extractResumeFields(text=''){
 }
 const extracted=extractResumeFields(savedResume?.text||'');const sameResume=!!savedResume&&savedProject?.resumeFile===savedResume.fileName;
 function detectProjects(text){
-  const lines=unique(text.replace(/\r/g,'').split('\n').map(value=>value.trim()).filter(Boolean));
-  const start=lines.findIndex(value=>/项目经历|项目经验|代表项目/i.test(value));if(start<0)return [extracted];
+  const raw=text.replace(/\r/g,'').split('\n').map(value=>value.trim());const start=raw.findIndex(value=>/项目经历|项目经验|代表项目/i.test(value));if(start<0)return [extracted];
   const stop=/^(教育经历|工作经历|实习经历|获奖经历|证书|专业技能|技能|自我评价|个人信息|联系方式|校园经历)/i;
-  const section=lines.slice(start+1).filter(value=>!stop.test(value));
-  const title=/项目|系统|平台|设计|开发|机器人|机械臂|温控|大赛|实践|课程/i;
-  const candidates=section.filter((value,index)=>index===0||(/20\d{2}/.test(value)&&value.length<90)|| (value.length>=4&&value.length<70&&title.test(value)&&!/[。；。]$/.test(value)));
-  const uniqueCandidates=unique(candidates);
-  const projects=uniqueCandidates.map((name,index)=>{const at=section.indexOf(name);const next=index+1<uniqueCandidates.length?section.indexOf(uniqueCandidates[index+1],at+1):section.length;const segment=section.slice(at,next).join('\n');const parsed=extractResumeFields(`项目经历\n${name}\n${segment}`);return {...parsed,projectName:name}});
+  const section=raw.slice(start+1);const blocks=[];let current=[];
+  for(const value of section){if(stop.test(value))break;if(value)current.push(value);else if(current.length){blocks.push(current);current=[]}}if(current.length)blocks.push(current);
+  const title=/项目|系统|平台|机器人|机械臂|温控|大赛|实践|课程/i;
+  const candidates=[];for(const block of blocks){const first=block[0];if(first&&first.length>=4&&first.length<90&&(!/[。；，：]$/.test(first)||/20\d{2}/.test(first))&&title.test(first))candidates.push({name:first,lines:block})}
+  if(!candidates.length){for(let index=0;index<section.length;index++){const value=section[index];if(value&&value.length>=4&&value.length<90&&/20\d{2}.*(?:20\d{2}|至今)/.test(value))candidates.push({name:value,lines:section.slice(index,index+12)})}}
+  const projects=candidates.map(({name,lines})=>{const segment=lines.join('\n');const parsed=extractResumeFields(`项目经历\n${name}\n${segment}`);return {...parsed,projectName:name}});
   return projects.length?projects:[extracted];
 }
 const projects=detectProjects(savedResume?.text||'');
