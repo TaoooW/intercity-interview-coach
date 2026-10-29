@@ -17,10 +17,11 @@ function extractResumeFields(text=''){
   const explicit={contribution:block('个人贡献|个人职责','技术方案|调试过程|项目结果'),technicalPlan:block('技术方案','调试过程|项目结果'),debugging:block('调试过程','项目结果'),result:block('项目结果','项目经历|教育经历|工作经历|专业技能|技能|自我评价')};
   const buckets={contribution:[],technicalPlan:[],debugging:[],result:[]};const rules=[['result',/获得|荣获|金奖|银奖|铜奖|奖项|成果|提升\s*\d|缩短|达到|完成率|交付/],['debugging',/调试|故障|问题|排查|解决|优化|误差|异常|测试|验证/],['contribution',/负责|参与|承担|协助|主导|完成/],['technicalPlan',/设计|采用|基于|使用|搭建|开发|算法|SolidWorks|PCB|STM|CAD|FreeRTOS|传感器/]];
   for(const value of projectLines){const bucket=rules.find(([,pattern])=>pattern.test(value))?.[0];if(bucket)buckets[bucket].push(value)}
-  const fallback=key=>unique(buckets[key]).join('\n');const skills=labeled('编程与工具|技术栈|技能关键词|专业技能|技能')||sectionValue('编程与工具|技术栈|技能关键词|专业技能|技能');
+  const cleanField=value=>unique(value.split('\n').map(item=>item.replace(/^[，。；：、,.!?！？)）】》]+/,'').trim()).filter(item=>item&&!/^[\u4e00-\u9fa5]{1,2}[，。；：]$/.test(item))).join('\n');
+  const fallback=key=>cleanField(unique(buckets[key]).join('\n'));const skills=labeled('编程与工具|技术栈|技能关键词|专业技能|技能')||sectionValue('编程与工具|技术栈|技能关键词|专业技能|技能');
   const professional=labeled('专业方向|所学专业|本科专业|专业类别|专业')||sectionValue('专业方向|所学专业|本科专业|专业类别|专业');const target=labeled('目标岗位|求职意向|意向岗位|目标方向|就业方向|应聘职位')||sectionValue('目标岗位|求职意向|意向岗位|目标方向|就业方向|应聘职位');
   const corpus=`${skills} ${projectLines.join(' ')}`;const inferredProfessional=professional||(/机械|SolidWorks|CAD|PCB|3D打印|机器人|硬件/i.test(corpus)?'机械与硬件工程':'');const inferredTarget=target||(/机械|SolidWorks|CAD|PCB|3D打印|机器人/i.test(corpus)?'机械结构与硬件开发':(/STM|嵌入式|单片机|FreeRTOS/i.test(corpus)?'嵌入式软件开发':''));
-  return {professional:inferredProfessional,target:inferredTarget,skills,projectName,contribution:explicit.contribution||fallback('contribution'),technicalPlan:explicit.technicalPlan||fallback('technicalPlan'),debugging:explicit.debugging||fallback('debugging'),result:explicit.result||fallback('result')};
+  return {professional:inferredProfessional,target:inferredTarget,skills,projectName,contribution:cleanField(explicit.contribution)||fallback('contribution'),technicalPlan:cleanField(explicit.technicalPlan)||fallback('technicalPlan'),debugging:cleanField(explicit.debugging)||fallback('debugging'),result:cleanField(explicit.result)||fallback('result')};
 }
 const extracted=extractResumeFields(savedResume?.text||'');const sameResume=!!savedResume&&savedProject?.resumeFile===savedResume.fileName;const values=sameResume?Object.fromEntries(Object.keys(extracted).map(key=>[key,extracted[key]||savedProject?.[key]||''])):extracted;
 document.querySelectorAll('.form-list input[name]').forEach(input=>{input.value=values[input.name]||''});const projectSummary=document.querySelector('.selected-project');
