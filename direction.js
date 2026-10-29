@@ -16,7 +16,8 @@ function extractResumeFields(text=''){
   const block=(startLabels,endLabels)=>{const start=new RegExp(`(?:^|\\n)\\s*(?:${startLabels})\\s*[：:]\\s*`,'i').exec(clean);if(!start)return '';const rest=clean.slice(start.index+start[0].length);const end=new RegExp(`\\n\\s*(?:${endLabels})\\s*[：:]`,'i').exec(rest);return rest.slice(0,end?end.index:rest.length).trim()};
   const explicit={contribution:block('个人贡献|个人职责','技术方案|调试过程|项目结果'),technicalPlan:block('技术方案','调试过程|项目结果'),debugging:block('调试过程','项目结果'),result:block('项目结果','项目经历|教育经历|工作经历|专业技能|技能|自我评价')};
   const buckets={contribution:[],technicalPlan:[],debugging:[],result:[]};const rules=[['result',/获得|荣获|金奖|银奖|铜奖|奖项|成果|提升\s*\d|缩短|达到|完成率|交付/],['debugging',/调试|故障|问题|排查|解决|优化|误差|异常|测试|验证/],['contribution',/负责|参与|承担|协助|主导|完成/],['technicalPlan',/设计|采用|基于|使用|搭建|开发|算法|SolidWorks|PCB|STM|CAD|FreeRTOS|传感器/]];
-  for(const value of projectLines){const bucket=rules.find(([,pattern])=>pattern.test(value))?.[0];if(bucket)buckets[bucket].push(value)}
+  const projectSentences=unique(projectLines.join('').split(/(?<=[。！？；])/));
+  for(const value of projectSentences){const bucket=rules.find(([,pattern])=>pattern.test(value))?.[0];if(bucket)buckets[bucket].push(value)}
   const cleanField=value=>unique(value.split('\n').map(item=>item.replace(/^[\u4e00-\u9fa5]{1,2}[，、：]\s*/,'').replace(/^[，。；：、,.!?！？)）】》]+/,'').trim()).filter(item=>item&&!/^[\u4e00-\u9fa5]{1,2}[，。；：]$/.test(item))).join('\n');
   const fallback=key=>cleanField(unique(buckets[key]).join('\n'));const skills=labeled('编程与工具|技术栈|技能关键词|专业技能|技能')||sectionValue('编程与工具|技术栈|技能关键词|专业技能|技能');
   const professional=labeled('专业方向|所学专业|本科专业|专业类别|专业')||sectionValue('专业方向|所学专业|本科专业|专业类别|专业');const target=labeled('目标岗位|求职意向|意向岗位|目标方向|就业方向|应聘职位')||sectionValue('目标岗位|求职意向|意向岗位|目标方向|就业方向|应聘职位');
