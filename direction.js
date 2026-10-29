@@ -14,15 +14,18 @@ function extractResumeFields(text=''){
     return index>=0?lines[index+1]||'':'';
   };
   const projectName=line(/(?:^|\n)\s*([^\n]{2,40}?)(?:\s*[|｜]\s*(?:课程设计|项目经历)|\s*[（(](?:课程设计|项目经历))/i)||sectionValue('项目经历|项目经验|代表项目');
+  const projectLines=projectName?lines.slice(Math.max(0,lines.findIndex(value=>value.includes(projectName))+1)).filter(value=>value.length>3).slice(0,24):[];
+  const keywordText=pattern=>projectLines.filter(value=>pattern.test(value)).join('\n');
+  const projectFallback=projectLines.join('\n');
   return {
     professional:labeled('专业方向|所学专业|本科专业|专业')||sectionValue('专业方向|所学专业|本科专业|专业'),
     target:labeled('目标岗位|求职意向|意向岗位|目标方向|就业方向')||sectionValue('目标岗位|求职意向|意向岗位|目标方向|就业方向'),
     skills:labeled('编程与工具|技术栈|技能关键词|专业技能|技能')||sectionValue('编程与工具|技术栈|技能关键词|专业技能|技能'),
     projectName,
-    contribution:line(/个人贡献\s*[：:]\s*([\s\S]*?)(?=\n(?:技术方案|调试过程|项目结果)\s*[：:])/i),
-    technicalPlan:line(/技术方案\s*[：:]\s*([\s\S]*?)(?=\n(?:调试过程|项目结果)\s*[：:])/i),
-    debugging:line(/调试过程\s*[：:]\s*([\s\S]*?)(?=\n项目结果\s*[：:])/i),
-    result:line(/项目结果\s*[：:]\s*([^\n]+)/i)
+    contribution:line(/个人贡献\s*[：:]\s*([\s\S]*?)(?=\n(?:技术方案|调试过程|项目结果)\s*[：:])/i)||keywordText(/负责|参与|承担|协助/),
+    technicalPlan:line(/技术方案\s*[：:]\s*([\s\S]*?)(?=\n(?:调试过程|项目结果)\s*[：:])/i)||keywordText(/设计|采用|基于|使用|搭建|开发/),
+    debugging:line(/调试过程\s*[：:]\s*([\s\S]*?)(?=\n项目结果\s*[：:])/i)||keywordText(/调试|问题|解决|优化|排查/),
+    result:line(/项目结果\s*[：:]\s*([^\n]+)/i)||keywordText(/获得|荣获|金奖|实现|提升|成果/)||projectFallback
   };
 }
 const extracted=extractResumeFields(savedResume?.text||'');
@@ -52,6 +55,7 @@ if(form){
   details.append(field('项目结果','result',true));
   form.parentElement.append(details);
   const parsedNote=document.createElement('p');parsedNote.className='parsed-note';parsedNote.textContent=savedResume?'已读取刚刚上传的简历，可在这里核对识别结果。':'尚未导入简历，确认信息为空白。';details.prepend(parsedNote);
+  if(savedResume?.text){const sourceLabel=document.createElement('label');sourceLabel.className='project-field resume-source';sourceLabel.textContent='简历原文（可滚动查看）';const source=document.createElement('textarea');source.readOnly=true;source.value=savedResume.text;source.setAttribute('aria-label','简历原文');sourceLabel.append(source);details.insertBefore(sourceLabel,details.children[1]);}
   const saveButton=document.createElement('button');saveButton.type='button';saveButton.className='quiet-button save-project';saveButton.textContent='保存修改';saveButton.addEventListener('click',async()=>{try{await saveProject();showProjectError('');saveButton.textContent='已保存';setTimeout(()=>saveButton.textContent='保存修改',1600)}catch(error){showProjectError(error.message);saveButton.textContent='保存失败';setTimeout(()=>saveButton.textContent='保存修改',1600)}});details.append(saveButton);
 }
 async function saveProject(){
