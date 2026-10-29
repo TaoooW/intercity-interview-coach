@@ -32,7 +32,8 @@ function detectProjects(text){
   for(const value of section){if(stop.test(value))break;if(value)current.push(value);else if(current.length){blocks.push(current);current=[]}}if(current.length)blocks.push(current);
   const title=/项目|系统|平台|机器人|机械臂|温控|大赛|实践|课程/i;
   const candidates=[];for(const block of blocks){const first=block[0];if(first&&first.length>=4&&first.length<90&&(!/[。；，：]$/.test(first)||/20\d{2}/.test(first))&&title.test(first))candidates.push({name:first,lines:block})}
-  if(!candidates.length){for(let index=0;index<section.length;index++){const value=section[index];if(value&&value.length>=4&&value.length<90&&/20\d{2}.*(?:20\d{2}|至今)/.test(value))candidates.push({name:value,lines:section.slice(index,index+12)})}}
+  const datePattern=/20\d{2}[年./-]\d{1,2}.*(?:20\d{2}[年./-]\d{1,2}|至今|现在)/;for(let index=0;index<section.length;index++){const value=section[index];if(value&&value.length<110&&datePattern.test(value)&&!candidates.some(candidate=>candidate.name===value)){const previous=section[index-1];const name=previous&&previous.length<70&&!datePattern.test(previous)?previous:value;candidates.push({name,lines:section.slice(Math.max(0,index-1),index+12)})}}
+  if(!candidates.length){for(let index=0;index<section.length;index++){const value=section[index];if(value&&value.length>=4&&value.length<90&&datePattern.test(value))candidates.push({name:value,lines:section.slice(index,index+12)})}}
   const projects=candidates.map(({name,lines})=>{const segment=lines.join('\n');const parsed=extractResumeFields(`项目经历\n${name}\n${segment}`);return {...parsed,projectName:name}});
   return projects.length?projects:[extracted];
 }
