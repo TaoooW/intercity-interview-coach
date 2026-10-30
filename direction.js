@@ -12,8 +12,8 @@ function extractResumeFields(text=''){
   const projectIndex=lines.findIndex(value=>/项目经历|项目经验|代表项目/i.test(value));
   const projectName=line(/(?:^|\n)\s*([^\n]{2,60}?)(?:\s*[|｜]\s*(?:课程设计|项目经历)|\s*[（(](?:课程设计|项目经历))/i)||(projectIndex>=0?lines[projectIndex+1]||'':'');
   const nameIndex=projectName?lines.findIndex(value=>value.includes(projectName)):projectIndex;const stop=/^(教育经历|工作经历|实习经历|获奖经历|证书|专业技能|技能|自我评价|个人信息|联系方式|校园经历)/i;
-  const projectLines=(nameIndex>=0?lines.slice(nameIndex+1):[]).filter(value=>!stop.test(value)).slice(0,32);
-  const block=(startLabels,endLabels)=>{const start=new RegExp(`(?:^|\\n)\\s*(?:${startLabels})\\s*[：:]\\s*`,'i').exec(clean);if(!start)return '';const rest=clean.slice(start.index+start[0].length);const end=new RegExp(`\\n\\s*(?:${endLabels})\\s*[：:]`,'i').exec(rest);return rest.slice(0,end?end.index:rest.length).trim()};
+  const afterProject=nameIndex>=0?lines.slice(nameIndex+1):[];const stopIndex=afterProject.findIndex(value=>stop.test(value));const projectLines=afterProject.slice(0,stopIndex<0?32:stopIndex);
+  const block=(startLabels,endLabels)=>{const start=new RegExp(`(?:^|\\n|[。；])\\s*(?:${startLabels})\\s*[：:]\\s*`,'i').exec(clean);if(!start)return '';const rest=clean.slice(start.index+start[0].length);const end=new RegExp(`(?:\\n|[。；])\\s*(?:${endLabels})\\s*[：:]`,'i').exec(rest);return rest.slice(0,end?end.index:rest.length).trim()};
   const explicit={contribution:block('个人贡献|个人职责','技术方案|调试过程|项目结果'),technicalPlan:block('技术方案','调试过程|项目结果'),debugging:block('调试过程','项目结果'),result:block('项目结果','项目经历|教育经历|工作经历|专业技能|技能|自我评价')};
   const buckets={contribution:[],technicalPlan:[],debugging:[],result:[]};const rules=[['result',/获得|荣获|金奖|银奖|铜奖|奖项|成果|提升\s*\d|缩短|达到|完成率|交付/],['debugging',/调试|故障|问题|排查|解决|优化|误差|异常|测试|验证/],['contribution',/负责|参与|承担|协助|主导|完成/],['technicalPlan',/设计|采用|基于|使用|搭建|开发|算法|SolidWorks|PCB|STM|CAD|FreeRTOS|传感器/]];
   const projectSentences=unique(projectLines.join('').split(/(?<=[。！？；])/));
@@ -26,16 +26,13 @@ function extractResumeFields(text=''){
 }
 const extracted=extractResumeFields(savedResume?.text||'');const sameResume=!!savedResume&&savedProject?.resumeFile===savedResume.fileName;
 function detectProjects(text){
-  const raw=text.replace(/\r/g,'').split('\n').map(value=>value.trim());const start=raw.findIndex(value=>/项目经历|项目经验|代表项目/i.test(value));if(start<0)return [extracted];
-  const stop=/^(教育经历|工作经历|实习经历|获奖经历|证书|专业技能|技能|自我评价|个人信息|联系方式|校园经历)/i;
-  const section=raw.slice(start+1);const blocks=[];let current=[];
-  for(const value of section){if(stop.test(value))break;if(value)current.push(value);else if(current.length){blocks.push(current);current=[]}}if(current.length)blocks.push(current);
-  const title=/项目|系统|平台|机器人|机械臂|温控|大赛|实践|课程/i;
-  const candidates=[];for(const block of blocks){const first=block[0];if(first&&first.length>=4&&first.length<90&&(!/[。；，：]$/.test(first)||/20\d{2}/.test(first))&&title.test(first))candidates.push({name:first,lines:block})}
-  const datePattern=/20\d{2}[年./-]\d{1,2}.*(?:20\d{2}[年./-]\d{1,2}|至今|现在)/;for(let index=0;index<section.length;index++){const value=section[index];if(value&&value.length<110&&datePattern.test(value)&&!candidates.some(candidate=>candidate.name===value)){const previous=section[index-1];const name=previous&&previous.length<70&&!datePattern.test(previous)?previous:value;candidates.push({name,lines:section.slice(Math.max(0,index-1),index+12)})}}
-  if(!candidates.length){for(let index=0;index<section.length;index++){const value=section[index];if(value&&value.length>=4&&value.length<90&&datePattern.test(value))candidates.push({name:value,lines:section.slice(index,index+12)})}}
-  const projects=candidates.map(({name,lines})=>{const segment=lines.join('\n');const parsed=extractResumeFields(`项目经历\n${name}\n${segment}`);return {...parsed,projectName:name}});
-  return projects.length?projects:[extracted];
+  const clean=text.replace(/\r/g,'');const sectionStart=clean.search(/(?:^|\n)\s*(?:项目经历|项目经验|代表项目)\s*\n/i);if(sectionStart<0)return [extracted];
+  const section=clean.slice(sectionStart);const header=/^\s*(.{4,100}?)\s+(20\d{2}[年./-]\d{1,2}\s*(?:月)?\s*[-至]\s*(?:20\d{2}[年./-]\d{1,2}\s*(?:月)?|至今|现在))\s*$/gim;const headers=[];let match;
+  while((match=header.exec(section))){const name=match[1].replace(/\s+/g,' ').trim();if(!/负责人|主持人|总负责人|硬件负责人|实习生|学生负责人/.test(name))headers.push({name,period:match[2].replace(/\s+/g,' '),index:match.index,end:header.lastIndex})}
+  if(!headers.length){const inline=/([^。\n]{2,60}?)[（(][^）)]*?(20\d{2}[年./-]\d{1,2}[^）)]*)[）)]/g;const inlineProjects=[];let inlineMatch;while((inlineMatch=inline.exec(section))){inlineProjects.push({name:inlineMatch[1].trim(),period:inlineMatch[2].replace(/\s+/g,' '),index:inlineMatch.index,end:inline.lastIndex})}if(inlineProjects.length){return inlineProjects.map((item,index)=>{const end=index+1<inlineProjects.length?inlineProjects[index+1].index:section.length;const body=section.slice(item.end,end);const parsed=extractResumeFields(`项目经历\n${item.name} ${item.period}\n${body}`);return {...parsed,projectName:`${item.name} ${item.period}`,period:item.period}})}}
+  if(!headers.length)return [extracted];
+  const projects=headers.map((item,index)=>{const end=index+1<headers.length?headers[index+1].index:section.length;const body=section.slice(item.end,end);const parsed=extractResumeFields(`项目经历\n${item.name} ${item.period}\n${body}`);return {...parsed,projectName:`${item.name} ${item.period}`,period:item.period}});
+  return projects;
 }
 const projects=detectProjects(savedResume?.text||'');
 const selectedIndex=Math.max(0,projects.findIndex(project=>project.projectName&&project.projectName===savedProject?.projectName));
